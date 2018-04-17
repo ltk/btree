@@ -1,30 +1,47 @@
-# To call this from the command line:
-# python grade.py
+#!/usr/bin/python
+#
+# The authoritative place for this script is in the inginious-grader
+# repository.
+
+# To call this from the command line: python grade.py some_test_binary
 
 from subprocess import call
 from subprocess import STDOUT
 from collections import OrderedDict
+from getopt import getopt
 import os
 import sys
 import json
+import random
+
+def usage():
+    print("grade.py [-n] some_test_binary")
+    print("")
+    print("    -n : non-interactive. meant for autograders.")
+    print("")
+    print("Examples:")
+    print(" $ python grade.py hello_test")
+    print(" $ python grade.py -n linked_list_test")
 
 # Be sure the user gave us a binary to test.
-if len(sys.argv) != 2:
-    print 'Syntax:  python grade.py some_test'
-    print 'Example: python grade.py linked_list_test'
+if len(sys.argv) < 2:
+    usage()
     sys.exit(-1)
-binary = sys.argv[1]
 
-# Set up some colorization definitions and color printer.
-class termcolors:
-    CYAN = '\033[36m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
+# Get the command line arguments and process them.
+argv = sys.argv[1:]
+try:
+    opts, args = getopt(argv, "n")
+except(e):
+    print(e)
+    usage()
+    sys.exit(2)
 
-def color_print(color, text):
-    print color + text + termcolors.ENDC
+noninteractive = False # default to interactive mode
+for opt, arg in opts:
+    if opt == '-n':
+        noninteractive = True
+binary = args[0]
 
 # Load test tags and point values from points.json    
 tests = OrderedDict()
@@ -36,7 +53,7 @@ try:
             for k in entry.keys():
                 tests[k] = entry[k]        
 except:
-    print 'Couldn\'t open or parse points.json'
+    print ('Couldn\'t open or parse points.json')
     sys.exit(-1)
 
 # Invoke each test tag and record the exit status code    
@@ -52,61 +69,56 @@ try:
         results[key] = status
         total_points += val
     DN.close()
-    print ""
 except:
-    print "Couldn't invoke the unit tests. Did it compile? (hint: type 'make' in your terminal)"
+    print ("Couldn't invoke the unit tests. Did it compile? (hint: type 'make' in your terminal)")
     sys.exit(-1)
 
-# In the event the student has full points, show a happy emoji at the end
-def choose_happygram():
-    # choose among the following at random, once i have network and can find out how random works in python...
-    # u'\U0001F389' # party popper
-    # u'\U0001f604' # grin
-    # u'\U0001F308' # rainbow
-    # u'\U0001F60E' # sunglasses
-    return u'\U0001F60E'
 
-# Tally points earned and print stuff out
-
-# Special condition for b-tree homework, we have 40 points possible out of 20 points for 'full credit'
-actual_total_points = total_points
-# total_points = 20
+# Tally points earned and print stuff out    
 earned_points = 0
+bads = [ ] # list of failed tests (keys)
 for key in results:
     this_points = 0
     if results[key] == 0:
         this_points = tests[key]
     earned_points += this_points
-    chk = ''
-    col = termcolors.WARNING
-    if this_points > 0:
-        col = termcolors.CYAN
-        chk = u'\u2713'
-    line = "{:<20} {:2} / {:2}  ".format(key, str(this_points), str(tests[key])) + chk
-    color_print(col, line)
-print "==============================="
-col = termcolors.FAIL
+    line = "{:<20} {:2} / {:2} ".format(key, str(this_points), str(tests[key])) # + chk
+    if noninteractive and this_points != tests[key]:
+        bads.append(key)
+    elif not noninteractive:
+        print(line)
+if not noninteractive:
+    print ("===============================")
+
 full = False
 happygram = ''
-if earned_points > 0:
-    col = termcolors.WARNING
-if earned_points >= total_points:
-    col = termcolors.OKGREEN
+if earned_points == total_points:
     full = True
-if earned_points == actual_total_points:
-    happygram = choose_happygram()
-line = '{:<20} {:2} / {:2}'.format('TOTAL', str(earned_points), str(total_points)) + ' ' + happygram
-color_print(col, line)
+line = '{:<20} {:2} / {:2}'.format('TOTAL', str(earned_points), str(total_points))
+if not noninteractive:
+    print(line)
 
 # Show a parting message to either submit or how to troubleshoot.
-print ""
-if full:
-    print "You should be good to submit your assignment now!"
-else:
-    print "Command line(s) to invoke specific failed unit tests follow this message. They"
-    print "will give you much more detailed information about what's wrong with your program."
-    print ""
-    
-for f in failedTests:
-    print f
+if not noninteractive:
+    if full:
+        print ("You should be good to submit your assignment now!")
+    else:
+        print ("Command line(s) to invoke specific failed unit tests follow this message. They")
+        print ("will give you much more detailed information about what's wrong with your program.")
+        print ("")
 
+    for f in failedTests:
+        print (f)
+
+# Add final output for the grade. This is for the inginious callback. 
+epf = float(earned_points)
+tpf = float(total_points)
+grade = int((epf / tpf) * 100)
+
+# The last line MUST be the grade.
+if noninteractive:
+    if len(bads) == 0:
+        print("All tests passed! Huzzah!")
+    else:
+        print("{} failed tests: {}".format(len(bads), ", ".join(bads)))
+print (str(grade))
