@@ -1,0 +1,25 @@
+{
+    "points": [
+
+        { "count nodes" : 1 },
+        { "count keys" : 1 },
+        
+        { "find present leaf" : 1 },
+        { "find present intnl" : 1 },
+        { "find present root" : 1 },
+        { "find not present" : 1 },
+
+        { "ins root empty": 1 },
+        { "ins root semifull": 1 },
+        { "ins root full": 4 },
+        { "ins leaf semifull": 3 },
+        { "ins leaf full": 5 },
+
+        { "rm not present empty": 1 },
+        { "rm root not empty": 2 },
+        { "rm not present leaf": 1 },
+        { "rm leaf sibs full": 5 },
+        { "rm leaf sibs mincap": 5 },
+        { "rm intnl sibs mincap": 6 }
+    ]
+}
