@@ -438,11 +438,14 @@ bool private_search_all(btree*& node, int key) {
   if (private_contains(node, key)) {
     return true; // found it here!
   }
+if (!node->is_leaf)
+{
   for (int i=0; i <= node->num_keys; i++) {
     // search every child, don't pay attention to sort order
     if (private_search_all(node->children[i], key)) {
       return true;
     }
   }
+}
   return false;
 }
