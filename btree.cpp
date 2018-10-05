@@ -18,10 +18,34 @@ btree* find(btree*& root, int key) {
 }
 
 int count_nodes(btree*& root) {
-  return 0; // TODO
+  if (root == NULL) {
+    return 0;
+  }
+
+  int count = 1;
+
+  if (!root->is_leaf) {
+    for (int i = 0; i <= root->num_keys; i++) {
+      count += count_nodes(root->children[i]);
+    }
+  }
+
+  return count;
 }
 
 int count_keys(btree*& root) {
-  return 0; // TODO
+  if (root == NULL) {
+    return 0;
+  }
+
+  int count = root->num_keys;
+
+  if (!root->is_leaf) {
+    for (int i = 0; i <= root->num_keys; i++) {
+      count += count_keys(root->children[i]);
+    }
+  }
+
+  return count;
 }
 
