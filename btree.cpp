@@ -1,9 +1,148 @@
 // btree.cpp
 
 #include <iostream>
+#include <math.h>
 #include "btree.h"
 
 using namespace std;
+
+btree* find_parent(btree*& node, btree*& root) {
+  // If the root node is equal to the target node, return null, since there is no parent node.
+  if (node == root) {
+    return NULL;
+  }
+
+  int first_key_of_node = node->keys[0];
+
+  // Scan the key values of the root node to see if the first key of the target node is present.
+  // If it is, return null since there is no parent node.
+  for (int i = 0; i < root->num_keys + 1; i++) {
+    if (root->keys[i] == first_key_of_node) {
+      return NULL;
+    }
+  }
+
+  // Otherwise, for each key in the root node, if the target node first key is less than the key
+  // we’re looking at, check if the child node linked from the left of the key we’re looking at is
+  // equal to the target node.
+  for (int j = 0; j < root->num_keys; j++) {
+    int key = root->keys[j];
+    if (first_key_of_node < key) {
+      btree* child = root->children[j];
+      if (child == node) {
+        // If it is, return the root node reference.
+        return root;
+      } else {
+        // Otherwise call `find_parent_node` again passing in the child node linked from the left of
+        // the key we’re looking at as the root node.
+        return find_parent(node, child);
+      }
+    }
+  }
+  
+  // If we get to the end and still haven’t called `find_parent_node` again,
+  // check if the child node linked from the right of the key we’re looking at is equal to the target
+  // node. If it is, return the root node reference, otherwise call `find_parent_node` passing in the
+  // last child as the root node.
+  btree* last_child = root->children[root->num_keys];
+  if (last_child == node) {
+    return root;
+  } else {
+    return find_parent(node, last_child);
+  }
+}
+
+void split_node(btree*& node, btree*& root) {
+  // Find the median key (the key at index ceil(order / 2)).
+  int median_key_index = ceil(node->num_keys / 2);
+  int median_key = node->keys[median_key_index];
+
+  // Create two new arrays (“lower_keys” and “higher_keys”) containing keys lower than and
+  // greater than the median key respectively.
+  int lower_keys[BTREE_ORDER];
+  int higher_keys[BTREE_ORDER];
+
+  int lower_count = 0;
+  int higher_count = 0;
+  for (int i = 0; i < node->num_keys; i++) {
+    int key = node->keys[i];
+    if (key < median_key) {
+      lower_keys[lower_count] = key;
+      lower_count++;
+    } else if (key > median_key) {
+      higher_keys[higher_count] = key;
+      higher_count++;
+    }
+  }
+
+  // Set current node’s keys to the lower_keys, and set the current node’s num_keys to the
+  // count of prior key values lower than the median key.
+  node->num_keys = lower_count;
+  for (int j = 0; j < node->num_keys; j++) {
+    node->keys[j] = lower_keys[j];
+  }
+
+  btree* parent;
+  if (node == root) {
+    // If the target node is the root node, create a new btree node and update the root node
+    // pointer to point to it. This new node is now our parent node.
+    root = new btree;
+    parent = root;
+  } else {
+    // Otherwise, find the current node’s parent node using the `find_parent` function.
+    parent = find_parent(node, root);
+  }
+
+  // Creating a new, empty array to hold the new key sequence for the parent node.
+  int parent_keys[BTREE_ORDER];
+
+  // We iterate through the parent node’s keys, adding each key to the new array until we
+  // encounter a value that is larger than the median key. We then add the median key to the
+  // new array. Then add the remainder of the parent node’s keys. Then we increment the value
+  // of the parent node’s num_keys.
+  bool key_inserted = false;
+  int key_insertion_index;
+  for (int i = 0; i < parent->num_keys; i++) {
+    int key = parent->keys[i];
+    if (!key_inserted && median_key < key) {
+      parent_keys[i] = key;
+      key_inserted = true;
+      key_insertion_index = i;
+    }
+
+    int insertion_index = key_inserted ? i + 1 : i;
+    parent_keys[insertion_index] = key;
+  }
+
+  // Now create a new children array in the same fashion, inserting a reference to the current
+  // node at index (key insertion index). Then create a new btree node with keys set to
+  // higher_keys, and insert a reference to it in the children array at index (key insertion index + 1).
+  btree* parent_children[BTREE_ORDER + 1];
+  bool child_inserted = false;
+  for (int k = 0; k < parent->num_keys + 1; k++) {
+
+    btree* child = parent->children[k];
+    if (k == key_insertion_index) {
+      btree* new_node = new btree;
+      new_node->num_keys = higher_count;
+      new_node->is_leaf = true;
+      for (int l = 0; l < higher_count; l++) {
+        new_node->keys[l] = higher_keys[l];
+      }
+      parent_children[k] = new_node;
+      child_inserted = true;
+    }
+
+    int insertion_index = child_inserted ? k + 1 : k;
+    parent_children[k] = parent->children[insertion_index];
+  }
+
+  // Check to see if the parent is now overfull (in the manner described previously). If it is,
+  // call `split_node` for the parent node.
+  if (parent->num_keys > BTREE_ORDER - 1) {
+    split_node(parent, root);
+  }
+}
 
 void insert_and_fix(int key, btree*& insertion_node, btree*& root) {
   // We’ll start by creating a new, empty array to hold our new key sequence.
@@ -48,7 +187,7 @@ void insert_and_fix(int key, btree*& insertion_node, btree*& root) {
 
   // Otherwise, we are overfull, and need to fix the tree to satisfy the key count invariant.
   // Call `split_node` providing the btree root node reference and the insertion node reference.
-  // TODO!
+   split_node(insertion_node, root);
 }
 
 void insert(btree*& root, int key) {
