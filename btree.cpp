@@ -57,6 +57,17 @@ void split_node(btree*& node, btree*& root) {
   int median_key_index = ceil(node->num_keys / 2);
   int median_key = node->keys[median_key_index];
 
+
+  // DEBUG
+  cout << "Splitting" << endl;
+  for (int p = 0; p < node->num_keys; p++) {
+    cout << node->keys[p] << ",";
+  }
+  cout << endl;
+  cout << "at" << endl;
+  cout << median_key << endl;
+  // END DEBUG
+
   // Create two new arrays (“lower_keys” and “higher_keys”) containing keys lower than and
   // greater than the median key respectively.
   int lower_keys[BTREE_ORDER];
@@ -75,6 +86,20 @@ void split_node(btree*& node, btree*& root) {
     }
   }
 
+  // DEBUG
+  cout << "Lower" << endl;
+  for (int p = 0; p < lower_count; p++) {
+    cout << lower_keys[p] << ",";
+  }
+  cout << endl;
+
+  cout << "Higher" << endl;
+  for (int p = 0; p < higher_count; p++) {
+    cout << higher_keys[p] << ",";
+  }
+  cout << endl;
+  // END DEBUG
+
   // Set current node’s keys to the lower_keys, and set the current node’s num_keys to the
   // count of prior key values lower than the median key.
   node->num_keys = lower_count;
@@ -82,16 +107,45 @@ void split_node(btree*& node, btree*& root) {
     node->keys[j] = lower_keys[j];
   }
 
+  // DEBUG
+  cout << "Node's New Keys" << endl;
+  for (int p = 0; p < node->num_keys; p++) {
+    cout << node->keys[p] << ",";
+  }
+  cout << endl;
+  // END DEBUG
+
   btree* parent;
   if (node == root) {
+    // DEBUG
+    cout << "Node is root" << endl;
+    cout << "NODE IS " << node << endl;
+    cout << "ROOT IS " << root << endl;
+    // END DEBUG
+
+
     // If the target node is the root node, create a new btree node and update the root node
     // pointer to point to it. This new node is now our parent node.
-    root = new btree;
+    btree* new_root = new btree;
+    root = new_root;
+    root->is_leaf = false;
+    root->num_keys = 0;
     parent = root;
   } else {
     // Otherwise, find the current node’s parent node using the `find_parent` function.
     parent = find_parent(node, root);
   }
+
+  // DEBUG
+  cout << "NODE IS " << node << endl;
+  cout << "ROOT IS " << root << endl;
+  cout << "PARENT IS " << parent << endl;
+  cout << "Parent's Existing Keys" << endl;
+  for (int p = 0; p < parent->num_keys; p++) {
+    cout << parent->keys[p] << ",";
+  }
+  cout << endl;
+  // END DEBUG
 
   // Creating a new, empty array to hold the new key sequence for the parent node.
   int parent_keys[BTREE_ORDER];
@@ -100,46 +154,79 @@ void split_node(btree*& node, btree*& root) {
   // encounter a value that is larger than the median key. We then add the median key to the
   // new array. Then add the remainder of the parent node’s keys. Then we increment the value
   // of the parent node’s num_keys.
-  bool key_inserted = false;
   int key_insertion_index;
-  for (int i = 0; i < parent->num_keys; i++) {
-    int key = parent->keys[i];
-    if (!key_inserted && median_key < key) {
-      parent_keys[i] = key;
-      key_inserted = true;
-      key_insertion_index = i;
-    }
 
-    int insertion_index = key_inserted ? i + 1 : i;
-    parent_keys[insertion_index] = key;
+  if (parent->num_keys == 0) {
+    parent->keys[0] = median_key;
+    parent->num_keys = 1;
+    key_insertion_index = 0;
+  } else {
+    bool key_inserted = false;
+    for (int i = 0; i < parent->num_keys; i++) {
+      int key = parent->keys[i];
+      if (!key_inserted && median_key < key) {
+        parent_keys[i] = key;
+        key_inserted = true;
+        key_insertion_index = i;
+      }
+
+      int insertion_index = key_inserted ? i + 1 : i;
+      parent_keys[insertion_index] = key;
+    }
   }
+
+  // DEBUG
+  cout << "Parent's New Keys" << endl;
+  for (int p = 0; p < parent->num_keys; p++) {
+    cout << parent->keys[p] << ",";
+  }
+  cout << endl;
+  // END DEBUG
 
   // Now create a new children array in the same fashion, inserting a reference to the current
   // node at index (key insertion index). Then create a new btree node with keys set to
   // higher_keys, and insert a reference to it in the children array at index (key insertion index + 1).
   btree* parent_children[BTREE_ORDER + 1];
-  bool child_inserted = false;
-  for (int k = 0; k < parent->num_keys + 1; k++) {
+  bool children_inserted = false;
 
-    btree* child = parent->children[k];
-    if (k == key_insertion_index) {
-      btree* new_node = new btree;
-      new_node->num_keys = higher_count;
-      new_node->is_leaf = true;
-      for (int l = 0; l < higher_count; l++) {
-        new_node->keys[l] = higher_keys[l];
-      }
-      parent_children[k] = new_node;
-      child_inserted = true;
+  btree* new_node = new btree;
+  new_node->num_keys = higher_count;
+  new_node->is_leaf = true;
+  for (int l = 0; l < higher_count; l++) {
+    new_node->keys[l] = higher_keys[l];
+  }
+
+  for (int k = 0; k < parent->num_keys + 1; k++) {
+    if (!children_inserted && k == key_insertion_index) {
+      parent->children[k] = node;
+      parent->children[k+1] = new_node;
+      children_inserted = true;
     }
 
-    int insertion_index = child_inserted ? k + 1 : k;
-    parent_children[k] = parent->children[insertion_index];
+    btree* child = parent->children[k];
+
+    // DEBUG
+    cout << "k is: " << k << ". II is " << key_insertion_index << endl;
+    // END DEBUG
+
+    int insertion_index = children_inserted ? k + 2 : k;
+    parent_children[insertion_index] = child;
   }
+
+  // DEBUG
+  cout << "Parent's New Children" << endl;
+  for (int p = 0; p < parent->num_keys + 1; p++) {
+    cout << parent->children[p] << ", ";
+  }
+  cout << endl;
+  // END DEBUG
 
   // Check to see if the parent is now overfull (in the manner described previously). If it is,
   // call `split_node` for the parent node.
   if (parent->num_keys > BTREE_ORDER - 1) {
+    // DEBUG
+    cout << "Splitting Again" << endl;
+    // END DEBUG
     split_node(parent, root);
   }
 }
