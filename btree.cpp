@@ -254,13 +254,166 @@ void insert(btree*& root, int key) {
   insert_and_fix(key, insertion_node, root);
 }
 
+// btree* find_while_fixing()
+
+btree* find_successor_node(btree*& node, btree*& root, int key) {
+  if (node->is_leaf) {
+    return NULL;
+  }
+
+  int child_index = -1;
+  int i = 0;
+  while (child_index < 0) {
+    if (node->keys[i] == key) {
+      child_index = i + 1;
+    }
+    i++;
+  }
+
+  // TODO: fix first child node if minimal
+  btree* first_child = node->children[child_index];
+  btree* successor_node = first_child;
+
+  while (!successor_node->is_leaf) {
+    // TODO: fix each new node if minimal
+    successor_node = successor_node->children[0];
+  }
+
+  return successor_node;
+}
+
+btree* find_predecessor_node(btree*& node, btree*& root, int key) {
+  if (node->is_leaf) {
+    return NULL;
+  }
+
+  int child_index = -1;
+  int i = 0;
+  while (child_index < 0) {
+    if (node->keys[i] == key) {
+      child_index = i;
+    }
+    i++;
+  }
+
+  // TODO: fix first child node if minimal
+  btree* first_child = node->children[child_index];
+  btree* predecessor_node = first_child;
+
+  while (!predecessor_node->is_leaf) {
+    // TODO: fix each new node if minimal
+    predecessor_node = predecessor_node->children[predecessor_node->num_keys];
+  }
+
+  return predecessor_node;
+}
+
+bool node_has_key(btree*& node, int key) {
+  for (int i = 0; i < node->num_keys; i++) {
+    if (node->keys[i] == key) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+void swap_keys(btree*& node, int key_to_remove, int key_to_add) {
+  for (int i = 0; i < node->num_keys; i++) {
+    if (node->keys[i] == key_to_remove) {
+      node->keys[i] = key_to_add;
+      return;
+    }
+  }
+}
+
+void remove_from_leaf_node(btree*& node, int key) {
+  bool key_found = false;
+  for (int i = 0; i < node->num_keys; i++) {
+    if (node->keys[i] == key) {
+      key_found = true;
+    } else if (key_found) {
+      node->keys[i - 1] = node->keys[i];
+    }
+  }
+  node->num_keys--;
+}
+
+void remove_from_inner_node(btree*& node, btree*& root, int key) {
+  // Swap the inner node key with successor/predecessor, then remove the
+  // desired key from its new location.
+
+  btree* successor = find_successor_node(node, root, key);
+  if (successor) {
+    int successor_key = successor->keys[0];
+    swap_keys(node, key, successor_key);
+    remove_from_leaf_node(successor, successor_key);
+    return;
+  }
+
+  btree* predecessor = find_predecessor_node(node, root, key);
+  if (predecessor) {
+    int predecessor_key = predecessor->keys[predecessor->num_keys - 1];
+    swap_keys(node, key, predecessor_key);
+    remove_from_leaf_node(predecessor, predecessor_key);
+  }
+}
+
+void remove_from_node(btree*& node, btree*& root, int key) {
+  if (node->is_leaf) {
+    remove_from_leaf_node(node, key);
+  } else {
+    remove_from_inner_node(node, root, key);
+  }
+}
+
 void remove(btree*& root, int key) {
   // TODO
   // DEBUG
   cout << "Removing " << key << endl;
-  cout << "From Tree " << key << endl;
+  cout << "From Tree" << endl;
   pt(root);
   // END DEBUG
+
+  // If the root has the key, just remove from the root.
+  // We don't need to fix root minimalism.
+  if (node_has_key(root, key)) {
+    remove_from_node(root, root, key);
+    return;
+  }
+
+  // Gradually step to the node from which we should remove the value.
+  btree* traversal_node = root;
+  while (!node_has_key(traversal_node, key)) {
+    cout << "HERE!" << endl;
+
+    // If we're in a leaf, but still haven't found the key,
+    // it doesn't exist in the tree.
+    if (traversal_node->is_leaf) {
+      return;
+    }
+
+    // Find the index of the next child we should traverse to.
+    int next_child_index = -1;
+  
+    for (int i = 0; i < traversal_node->num_keys; i++) {
+      if (traversal_node->keys[i] > key) {
+        next_child_index = i;
+      }
+    }
+
+    // If the key is bigger than all keys, traverse to the last child.
+    if (next_child_index < 0) {
+      next_child_index = traversal_node->num_keys;
+    }
+
+    // Repeat traversal for the next child
+    traversal_node = traversal_node->children[next_child_index];
+    // TODO: fix node if necessary!
+  }
+
+  // If we made it here, we know that traversal_node contains the key.
+  remove_from_node(traversal_node, root, key);
 }
 
 btree* find(btree*& root, int key) {
