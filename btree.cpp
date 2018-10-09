@@ -256,6 +256,124 @@ void insert(btree*& root, int key) {
 
 // btree* find_while_fixing()
 
+btree* prev_sibling(btree*& node, btree*& root) {
+  btree* parent = find_parent(node, root);
+
+  if (!parent) {
+    // We must be at a root node, which doesn't have a parent.
+    return NULL;
+  }
+
+  // Scan through the children on the parent to find the target node's index.
+  int child_index = -1;
+  int i = 0;
+  while (child_index < 0) {
+    if (parent->children[i] == node) {
+      child_index = i;
+    }
+    i++;
+  }
+
+  // If there is no previous child, there is no previous sibling.
+  if (child_index == 0) {
+    return NULL;
+  }
+
+  return parent->children[child_index - 1];
+}
+
+btree* next_sibling(btree*& node, btree*& root) {
+  btree* parent = find_parent(node, root);
+
+  if (!parent) {
+    // We must be at a root node, which doesn't have a parent.
+    return NULL;
+  }
+
+  // Scan through the children on the parent to find the target node's index.
+  int child_index = -1;
+  int i = 0;
+  while (child_index < 0) {
+    if (parent->children[i] == node) {
+      child_index = i;
+    }
+    i++;
+  }
+
+  // If there is no next child, there is no next sibling.
+  if (child_index == parent->num_keys) {
+    return NULL;
+  }
+
+  return parent->children[child_index + 1];
+}
+
+bool is_minimal(btree*& node) {
+  cout << "Checking if minimal" << endl;
+  print_node(node, 42);
+  bool min = node->num_keys <= (BTREE_ORDER / 2);
+  cout << "Min? " << min << endl;
+  return min;
+}
+
+void merge(btree*& sib_1, btree*& sib_2, btree*& root) {
+  // TODO: implement merge
+  cout << "MERGING" << endl;
+  btree* parent = find_parent(sib_1, root);
+
+  // Find the indexes of the two siblings so that we can find the
+  // separating key.
+  int sib_1_index = -1;
+  int sib_2_index = -1;
+  int i = 0;
+  while (sib_1_index < 0 || sib_2_index < 0) {
+    if (parent->children[i] == sib_1) {
+      sib_1_index = i;
+    }
+
+    if (parent->children[i] == sib_2) {
+      sib_2_index = i;
+    }
+
+    i++;
+  }
+
+  cout << "Sib 1 Index: " << sib_1_index << endl;
+  cout << "Sib 2 Index: " << sib_2_index << endl;
+
+  int separating_key_index = sib_1_index < sib_2_index ? sib_1_index : sib_2_index;
+  int separating_key = parent->keys[separating_key_index];
+  cout << "Separating Key Index: " << separating_key_index << endl;
+  cout << "Separating Key: " << separating_key << endl;
+}
+
+void fix_for_removal(btree*& node, btree*& root) {
+  cout << "FIXING" << endl;
+
+  // If we're descending down into a node for a removal, and it's minimal
+  // do some work to make it not minimal.
+
+  btree* prev_sib = prev_sibling(node, root);
+  btree* next_sib = next_sibling(node, root);
+  bool prev_sib_nonminimal = prev_sib && !is_minimal(prev_sib);
+  bool next_sib_nonminimal = next_sib && !is_minimal(next_sib);
+
+  // Case 1: At least one sibling is non-minimal.. rotate!
+  if (prev_sib_nonminimal || next_sib_nonminimal) {
+    // TODO: Rotate
+    return;
+  }
+
+  // Case 2: All siblings are minimal... merge!
+  if ((!prev_sib || is_minimal(prev_sib)) && (!next_sib || is_minimal(next_sib))) {
+    if (next_sib) {
+      merge(node, next_sib, root);
+    } else {
+      merge(node, prev_sib, root);
+    }
+  }
+}
+
 btree* find_successor_node(btree*& node, btree*& root, int key) {
   if (node->is_leaf) {
     return NULL;
@@ -275,8 +393,10 @@ btree* find_successor_node(btree*& node, btree*& root, int key) {
   btree* successor_node = first_child;
 
   while (!successor_node->is_leaf) {
-    // TODO: fix each new node if minimal
     successor_node = successor_node->children[0];
+    if (is_minimal(successor_node)) {
+      fix_for_removal(successor_node, root);
+    }
   }
 
   return successor_node;
@@ -298,11 +418,17 @@ btree* find_predecessor_node(btree*& node, btree*& root, int key) {
 
   // TODO: fix first child node if minimal
   btree* first_child = node->children[child_index];
+  if (is_minimal(first_child)) {
+    fix_for_removal(first_child, root);
+  }
+
   btree* predecessor_node = first_child;
 
   while (!predecessor_node->is_leaf) {
-    // TODO: fix each new node if minimal
     predecessor_node = predecessor_node->children[predecessor_node->num_keys];
+    if (is_minimal(predecessor_node)) {
+      fix_for_removal(predecessor_node, root);
+    }
   }
 
   return predecessor_node;
@@ -409,7 +535,9 @@ void remove(btree*& root, int key) {
 
     // Repeat traversal for the next child
     traversal_node = traversal_node->children[next_child_index];
-    // TODO: fix node if necessary!
+    if (is_minimal(traversal_node)) {
+      fix_for_removal(traversal_node, root);
+    }
   }
 
   // If we made it here, we know that traversal_node contains the key.
