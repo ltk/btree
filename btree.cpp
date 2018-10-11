@@ -6,6 +6,12 @@
 
 using namespace std;
 
+void remove_from_node(btree*& node, btree*& root, int key);
+
+
+// TODO: Successor is 19 when removing 24
+// TODO:
+
 void print_node(btree* node, int level) {
   cout << "=======================" << endl;
   cout << "Level " << level << "(leaf:" << node->is_leaf << ")" << endl;
@@ -319,6 +325,7 @@ void merge(btree*& sib_1, btree*& sib_2, btree*& root) {
   // TODO: implement merge
   cout << "MERGING" << endl;
   btree* parent = find_parent(sib_1, root);
+  bool is_leaf = sib_1->is_leaf;
 
   // Find the indexes of the two siblings so that we can find the
   // separating key.
@@ -337,19 +344,20 @@ void merge(btree*& sib_1, btree*& sib_2, btree*& root) {
     i++;
   }
 
-  cout << "Sib 1 Index: " << sib_1_index << endl;
-  cout << "Sib 2 Index: " << sib_2_index << endl;
+  // cout << "Sib 1 Index: " << sib_1_index << endl;
+  // cout << "Sib 2 Index: " << sib_2_index << endl;
 
   int separating_key_index = sib_1_index < sib_2_index ? sib_1_index : sib_2_index;
   int separating_key = parent->keys[separating_key_index];
-  cout << "Separating Key Index: " << separating_key_index << endl;
-  cout << "Separating Key: " << separating_key << endl;
+  // cout << "Separating Key Index: " << separating_key_index << endl;
+  // cout << "Separating Key: " << separating_key << endl;
 
   int new_keys[BTREE_ORDER];
   btree* new_children[BTREE_ORDER + 1];
   int num_new_keys = 0;
 
   if (sib_1_index > sib_2_index) {
+    // cout << "SIB 1 > SIB 2" << endl;
 
     // Add sib 2 keys, then sep key, then sib 1 keys.
     for (int i = 0; i < sib_2->num_keys; i++) {
@@ -367,55 +375,95 @@ void merge(btree*& sib_1, btree*& sib_2, btree*& root) {
       new_children[num_new_keys] = sib_1->children[i];
       num_new_keys++;
     }
+
     new_children[num_new_keys] = sib_1->children[sib_1->num_keys];
   } else {
     // Add sib 1 keys, then sep key, then sib 2 keys.
     for (int i = 0; i < sib_1->num_keys; i++) {
+      // cout << "Adding Key " << sib_1->keys[i] << endl;
       new_keys[num_new_keys] = sib_1->keys[i];
-      new_children[num_new_keys] = sib_1->children[i];
+      if (!is_leaf) {
+        new_children[num_new_keys] = sib_1->children[i];
+      }
       num_new_keys++;
     }
-    new_children[num_new_keys] = sib_1->children[sib_1->num_keys];
+    if (!is_leaf) {
+      new_children[num_new_keys] = sib_1->children[sib_1->num_keys];
+    }
 
+    // cout << "Adding Key " << separating_key << endl;
     new_keys[num_new_keys] = separating_key;
     num_new_keys++;
 
     for (int i = 0; i < sib_2->num_keys; i++) {
+      // cout << "Adding Key " << sib_2->keys[i] << endl;
       new_keys[num_new_keys] = sib_2->keys[i];
-      new_children[num_new_keys] = sib_2->children[i];
+      if (!is_leaf) {
+        new_children[num_new_keys] = sib_2->children[i];
+      }
       num_new_keys++;
     }
-    new_children[num_new_keys] = sib_2->children[sib_2->num_keys];
+    if (!is_leaf) {
+      new_children[num_new_keys] = sib_2->children[sib_2->num_keys];
+    }
   }
 
   for (int j = 0; j < num_new_keys; j++) {
+    // cout << "Setting Key " << new_keys[j];
     sib_1->keys[j] = new_keys[j];
-    sib_1->children[j] = new_children[j];
+    if (!is_leaf) {
+      sib_1->children[j] = new_children[j];
+    }
   }
-  sib_1->children[num_new_keys] = new_children[num_new_keys];
   sib_1->num_keys = num_new_keys;
+
+  if (!is_leaf) {
+    sib_1->children[num_new_keys] = new_children[num_new_keys];
+    // cout << "last child is" << endl;
+    // print_node(sib_1->children[num_new_keys], 12);
+  }
 
   // Shuffle keys and children in parent to remove separating key
   if (parent == root && parent->num_keys < 2) {
+    // cout << "Parent is root, which has " << parent->num_keys << " keys" << endl;
+    // print_node(parent, 0);
     // Set root to sib 1.
     root = sib_1;
     // Delete parent.
     delete parent;
   } else {
-    bool key_removed = false;
-    for (int h = 0; h < parent->num_keys; h++) {
-      if (h < parent->num_keys) {
-        if (parent->keys[h] == separating_key) {
-          key_removed = true;
-        }
+    // cout << "Parent isn't root" << endl;
 
-        parent->keys[h] = key_removed ? parent->keys[h - 1] : parent->keys[h];
-      }
-
-      parent->children[h] = key_removed ? parent->children[h - 1] : parent->children[h];
+    // Move keys and children in parent after separating key down one index.
+    // for (int h = parent->num_keys - 1; h > separating_key_index; h--) {
+    for (int h = separating_key_index + 1; h < parent->num_keys; h++) {
+      // cout << "setting " << parent->keys[h] << " at index " << h - 1 << endl;
+      parent->keys[h - 1] = parent->keys[h];
+      parent->children[h - 1] = parent->children[h];
     }
-
     parent->num_keys--;
+    parent->children[parent->num_keys] = parent->children[parent->num_keys + 1];
+
+
+    // bool key_removed = false;
+    // for (int h = 0; h < parent->num_keys; h++) {
+    //   if (h < parent->num_keys) {
+    //     cout << "Checking key " << parent->keys[h] << endl;
+    //     if (parent->keys[h] == separating_key) {
+    //       cout << "removal index " << h << endl;
+    //       key_removed = true;
+    //     }
+
+    //     parent->keys[h] = key_removed ? parent->keys[h - 1] : parent->keys[h];
+    //   }
+
+    //   cout << "Setting child " << h << endl;
+    //   parent->children[h] = key_removed ? parent->children[h - 1] : parent->children[h];
+    // }
+
+    
+    // parent->children[parent->num_keys] = parent->children[parent->num_keys + 1];
+
   }
 
   // Delete the useless sibling.
@@ -463,9 +511,13 @@ btree* find_successor_node(btree*& node, btree*& root, int key) {
     i++;
   }
 
+  cout << "Succ child index is" << child_index << endl;
+  // cout << "For node" << endl;
+  // pt(node);
+
   // TODO: fix first child node if minimal
-  btree* first_child = node->children[child_index];
-  btree* successor_node = first_child;
+  btree* successor_node = node->children[child_index];
+  // btree* successor_node = first_child;
 
   while (!successor_node->is_leaf) {
     successor_node = successor_node->children[0];
@@ -473,6 +525,13 @@ btree* find_successor_node(btree*& node, btree*& root, int key) {
       fix_for_removal(successor_node, root);
     }
   }
+
+  if (is_minimal(successor_node)) {
+    fix_for_removal(successor_node, root);
+  }
+
+  cout << "successor node" << endl;
+  pt(node);
 
   return successor_node;
 }
@@ -504,6 +563,10 @@ btree* find_predecessor_node(btree*& node, btree*& root, int key) {
     if (is_minimal(predecessor_node)) {
       fix_for_removal(predecessor_node, root);
     }
+  }
+
+  if (is_minimal(predecessor_node)) {
+    fix_for_removal(predecessor_node, root);
   }
 
   return predecessor_node;
@@ -546,7 +609,14 @@ void remove_from_inner_node(btree*& node, btree*& root, int key) {
 
   btree* successor = find_successor_node(node, root, key);
   if (successor) {
+    
+    if (!node_has_key(node, key)) {
+      btree* new_containing_node = find(root, key);
+      return remove_from_node(new_containing_node, root, key);
+    }
+
     int successor_key = successor->keys[0];
+    cout << "Successor is " << successor_key << endl;
     swap_keys(node, key, successor_key);
     remove_from_leaf_node(successor, successor_key);
     return;
@@ -554,6 +624,12 @@ void remove_from_inner_node(btree*& node, btree*& root, int key) {
 
   btree* predecessor = find_predecessor_node(node, root, key);
   if (predecessor) {
+    // Finding a success or pred can change the position of the target key in the tree.
+    if (!node_has_key(node, key)) {
+      btree* new_containing_node = find(root, key);
+      return remove_from_node(new_containing_node, root, key);
+    }
+
     int predecessor_key = predecessor->keys[predecessor->num_keys - 1];
     swap_keys(node, key, predecessor_key);
     remove_from_leaf_node(predecessor, predecessor_key);
@@ -586,8 +662,9 @@ void remove(btree*& root, int key) {
   // Gradually step to the node from which we should remove the value.
   btree* traversal_node = root;
   while (!node_has_key(traversal_node, key)) {
-    cout << "HERE!" << endl;
-    pt(traversal_node);
+    // cout << "HERE!" << endl;
+    // pt(traversal_node);
+
 
     // If we're in a leaf, but still haven't found the key,
     // it doesn't exist in the tree.
@@ -615,12 +692,15 @@ void remove(btree*& root, int key) {
     // Repeat traversal for the next child
     traversal_node = traversal_node->children[next_child_index];
     if (is_minimal(traversal_node)) {
+      cout << "FIXING TRAVERSAL" << endl; 
+      // pt(root);
       fix_for_removal(traversal_node, root);
     }
   }
 
-  cout << "WOOHOO ITS HERE" << endl;
-  pt(root);
+  // cout << "WOOHOO ITS HERE" << endl;
+  // pt(root);
+
 
   // If we made it here, we know that traversal_node contains the key.
   remove_from_node(traversal_node, root, key);
