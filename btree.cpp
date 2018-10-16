@@ -6,6 +6,7 @@
 
 using namespace std;
 
+void print_tree(btree* &root);
 void remove_from_node(btree* node, btree*& root, int key);
 
 void print_node(btree* node, int level) {
@@ -17,21 +18,21 @@ void print_node(btree* node, int level) {
   cout << endl;
 }
 
-void print_tree(btree* root, int level) {
-  if (!root->is_leaf) {
-    cout << "children" << endl;
-    for (int i = 0; i < root->num_keys + 1; i++) {
-      print_node(root->children[i], level +1);
-    }
-    for (int i = 0; i < root->num_keys + 1; i++) {
-      print_tree(root->children[i], level +1);
-    }
-  }
-}
+// void print_tree(btree* root, int level) {
+//   if (!root->is_leaf) {
+//     cout << "children" << endl;
+//     for (int i = 0; i < root->num_keys + 1; i++) {
+//       print_node(root->children[i], level +1);
+//     }
+//     for (int i = 0; i < root->num_keys + 1; i++) {
+//       print_tree(root->children[i], level +1);
+//     }
+//   }
+// }
 
 void pt(btree* root) {
-  print_node(root, 0);
-  print_tree(root, 0);
+  // print_node(root, 0);
+  print_tree(root);
 }
 
 btree* find_parent(btree* node, btree*& root) {
