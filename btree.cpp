@@ -12,17 +12,25 @@ void remove_from_node(btree*& node, btree*& root, int key);
 // TODO: Successor is 19 when removing 24
 // TODO:
 
-void print_node(btree* node, int level) {
-  cout << "=======================" << endl;
-  cout << "Level " << level << "(leaf:" << node->is_leaf << ")" << endl;
+void print_node(btree*& node, int level) {
+  // cout << "=======================" << endl;
+  cout << "Level " << level << "(leaf:" << node->is_leaf << ", numkeys:" << node->num_keys << ")" << endl;
   for (int p = 0; p < node->num_keys; p++) {
     cout << node->keys[p] << ",";
   }
-  cout << endl << "=======================" << endl;
+
+  cout << endl;
+
+  // for (int o = 0; o < node->num_keys + 1; o++) {
+  //   print_node(node->children[o], level + 1);
+  // }
+  // cout << endl << "=======================" << endl;
+  // cout << 
 }
 
-void print_tree(btree* root, int level) {
+void print_tree(btree*& root, int level) {
   if (!root->is_leaf) {
+    cout << "children" << endl;
     for (int i = 0; i < root->num_keys + 1; i++) {
       print_node(root->children[i], level +1);
     }
@@ -32,7 +40,8 @@ void print_tree(btree* root, int level) {
   }
 }
 
-void pt(btree* root) {
+
+void pt(btree*& root) {
   print_node(root, 0);
   print_tree(root, 0);
 }
@@ -52,6 +61,7 @@ btree* find_parent(btree*& node, btree*& root) {
       return NULL;
     }
   }
+
 
   // Otherwise, for each key in the root node, if the target node first key is less than the key
   // we’re looking at, check if the child node linked from the left of the key we’re looking at is
@@ -323,7 +333,8 @@ bool is_minimal(btree*& node) {
 
 void merge(btree*& sib_1, btree*& sib_2, btree*& root) {
   // TODO: implement merge
-  cout << "MERGING" << endl;
+  // KEEP sib_1, DELETE sib_2
+  cout << "MERGING 1" << endl;
   btree* parent = find_parent(sib_1, root);
   bool is_leaf = sib_1->is_leaf;
 
@@ -332,17 +343,25 @@ void merge(btree*& sib_1, btree*& sib_2, btree*& root) {
   int sib_1_index = -1;
   int sib_2_index = -1;
   int i = 0;
+  cout << "PARENT IS ROOT? " << (parent == root) << endl; 
+  cout << "PARENT IS" << endl;
+  cout << "PARENT NUM KEYS: " << parent->num_keys << endl;
+  pt(parent);
   while (sib_1_index < 0 || sib_2_index < 0) {
+    cout << "LOOKING FOR " << sib_1 << endl; 
     if (parent->children[i] == sib_1) {
       sib_1_index = i;
     }
 
+    cout << "LOOKING FOR " << sib_2 << endl; 
     if (parent->children[i] == sib_2) {
       sib_2_index = i;
     }
 
     i++;
   }
+
+  cout << "MERGING 1.5" << endl;
 
   // cout << "Sib 1 Index: " << sib_1_index << endl;
   // cout << "Sib 2 Index: " << sib_2_index << endl;
@@ -352,78 +371,109 @@ void merge(btree*& sib_1, btree*& sib_2, btree*& root) {
   // cout << "Separating Key Index: " << separating_key_index << endl;
   // cout << "Separating Key: " << separating_key << endl;
 
+  cout << "MERGING 2" << endl;
+
   int new_keys[BTREE_ORDER];
   btree* new_children[BTREE_ORDER + 1];
-  int num_new_keys = 0;
+  int num_new_keys = sib_1->num_keys + sib_2->num_keys + 1;
+  cout << "combo has " << num_new_keys << " new keys" << endl;
 
   if (sib_1_index > sib_2_index) {
-    // cout << "SIB 1 > SIB 2" << endl;
+    cout << "SIB 1 > SIB 2" << endl;
 
     // Add sib 2 keys, then sep key, then sib 1 keys.
     for (int i = 0; i < sib_2->num_keys; i++) {
-      new_keys[num_new_keys] = sib_2->keys[i];
-      new_children[num_new_keys] = sib_2->children[i];
-      num_new_keys++;
-    }
-    new_children[num_new_keys] = sib_2->children[sib_2->num_keys];
-
-    new_keys[num_new_keys] = separating_key;
-    num_new_keys++;
-
-    for (int i = 0; i < sib_1->num_keys; i++) {
-      new_keys[num_new_keys] = sib_1->keys[i];
-      new_children[num_new_keys] = sib_1->children[i];
-      num_new_keys++;
-    }
-
-    new_children[num_new_keys] = sib_1->children[sib_1->num_keys];
-  } else {
-    // Add sib 1 keys, then sep key, then sib 2 keys.
-    for (int i = 0; i < sib_1->num_keys; i++) {
-      // cout << "Adding Key " << sib_1->keys[i] << endl;
-      new_keys[num_new_keys] = sib_1->keys[i];
+      new_keys[i] = sib_2->keys[i];
       if (!is_leaf) {
-        new_children[num_new_keys] = sib_1->children[i];
+        new_children[i] = sib_2->children[i];
       }
-      num_new_keys++;
     }
+    if (!is_leaf) {
+      new_children[sib_2->num_keys] = sib_2->children[sib_2->num_keys];
+    }
+
+    new_keys[sib_2->num_keys] = separating_key;
+
+    for (int i = 0; i < sib_1->num_keys; i++) {
+      new_keys[sib_2->num_keys + 1 + i] = sib_1->keys[i];
+
+      if (!is_leaf) {
+        new_children[sib_2->num_keys + 1 + i] = sib_1->children[i];
+      }
+    }
+
     if (!is_leaf) {
       new_children[num_new_keys] = sib_1->children[sib_1->num_keys];
     }
+  } else {
+    cout << "SIB 2 > SIB 1" << endl;
+    // TODO: We're setting the wrong keys here.
 
-    // cout << "Adding Key " << separating_key << endl;
-    new_keys[num_new_keys] = separating_key;
-    num_new_keys++;
+    // Keys and children from sib1 are already in place
 
-    for (int i = 0; i < sib_2->num_keys; i++) {
-      // cout << "Adding Key " << sib_2->keys[i] << endl;
-      new_keys[num_new_keys] = sib_2->keys[i];
+
+    // Add keys and children from sib_1
+    for (int i = 0; i < sib_1->num_keys; i++) {
+      cout << "Prepping Key " << sib_1->keys[i] << endl;
+      new_keys[i] = sib_1->keys[i];
+
+      // Add children if we're not on a leaf.
       if (!is_leaf) {
-        new_children[num_new_keys] = sib_2->children[i];
+        new_children[i] = sib_1->children[i];
       }
-      num_new_keys++;
     }
+
+    // Add final child from sib1
+    if (!is_leaf) {
+      new_children[sib_1->num_keys] = sib_1->children[sib_1->num_keys];
+    }
+
+    // Add the separating key after sib1 keys
+    cout << "Prepping Key " << separating_key << endl;
+    new_keys[sib_1->num_keys] = separating_key;
+
+    // Add sib2's keys and children
+    for (int i = 0; i < sib_2->num_keys; i++) {
+      cout << "Prepping Key " << sib_2->keys[i] << endl;
+      new_keys[sib_1->num_keys + 1 + i] = sib_2->keys[i];
+
+      // Add children if we're not on a leaf.
+      if (!is_leaf) {
+        new_children[sib_1->num_keys + 1 + i] = sib_2->children[i];
+      }
+    }
+
+    // Add final child from sib2
     if (!is_leaf) {
       new_children[num_new_keys] = sib_2->children[sib_2->num_keys];
     }
   }
 
-  for (int j = 0; j < num_new_keys; j++) {
-    // cout << "Setting Key " << new_keys[j];
-    sib_1->keys[j] = new_keys[j];
-    if (!is_leaf) {
-      sib_1->children[j] = new_children[j];
-    }
-  }
+  cout << "MERGING 3" << endl;
+
+  // Reset the number of keys for the node
   sib_1->num_keys = num_new_keys;
 
-  if (!is_leaf) {
-    sib_1->children[num_new_keys] = new_children[num_new_keys];
-    // cout << "last child is" << endl;
-    // print_node(sib_1->children[num_new_keys], 12);
+  // Add the new keys to the node
+  for (int j = 0; j < num_new_keys; j++) {
+    cout << "Setting Key " << new_keys[j] << endl;
+    sib_1->keys[j] = new_keys[j];
   }
 
-  // Shuffle keys and children in parent to remove separating key
+  // Add the new children to the node
+  if (!is_leaf) {
+    for (int k = 0; k < num_new_keys; k++) {
+      // cout << "Setting Key " << new_keys[j];
+      sib_1->children[k] = new_children[k];
+    }
+
+    // Add the last child to the node
+    sib_1->children[num_new_keys] = new_children[num_new_keys];
+  }
+
+  cout << "MERGING 4" << endl;
+
+  // Shuffle keys and children in parent to remove separating key from parent
   if (parent == root && parent->num_keys < 2) {
     // cout << "Parent is root, which has " << parent->num_keys << " keys" << endl;
     // print_node(parent, 0);
@@ -466,26 +516,36 @@ void merge(btree*& sib_1, btree*& sib_2, btree*& root) {
 
   }
 
+  cout << "MERGING 5" << endl;
+
   // Delete the useless sibling.
   delete sib_2;
 }
 
 void fix_for_removal(btree*& node, btree*& root) {
   cout << "FIXING" << endl;
+  // TODO: Are we deleting node in here?
 
   // If we're descending down into a node for a removal, and it's minimal
   // do some work to make it not minimal.
-
+  
   btree* prev_sib = prev_sibling(node, root);
   btree* next_sib = next_sibling(node, root);
   bool prev_sib_nonminimal = prev_sib && !is_minimal(prev_sib);
   bool next_sib_nonminimal = next_sib && !is_minimal(next_sib);
+
+  cout << "FIXING 2" << endl;
+
+  
 
   // Case 1: At least one sibling is non-minimal.. rotate!
   if (prev_sib_nonminimal || next_sib_nonminimal) {
     // TODO: Rotate
     return;
   }
+
+
+  cout << "FIXING 3" << endl;
 
   // Case 2: All siblings are minimal... merge!
   if ((!prev_sib || is_minimal(prev_sib)) && (!next_sib || is_minimal(next_sib))) {
@@ -530,8 +590,8 @@ btree* find_successor_node(btree*& node, btree*& root, int key) {
     fix_for_removal(successor_node, root);
   }
 
-  cout << "successor node" << endl;
-  pt(node);
+  // cout << "successor node" << endl;
+  // pt(node);
 
   return successor_node;
 }
@@ -648,8 +708,8 @@ void remove(btree*& root, int key) {
   // TODO
   // DEBUG
   cout << "Removing " << key << endl;
-  cout << "From Tree" << endl;
-  pt(root);
+  // cout << "From Tree" << endl;
+  // pt(root);
   // END DEBUG
 
   // If the root has the key, just remove from the root.
@@ -676,13 +736,19 @@ void remove(btree*& root, int key) {
     // Find the index of the next child we should traverse to.
     int next_child_index = -1;
     bool next_child_found = false;
+    
+    // pt(traversal_node);
     for (int i = 0; i < traversal_node->num_keys; i++) {
       if (!next_child_found && traversal_node->keys[i] > key) {
-        cout << "TRAVERSE TO CHILD " << i << endl;
+        cout << "KEY " << traversal_node->keys[i] << endl;
+        // cout << "TRAVERSE TO CHILD " << i << endl;
         next_child_index = i;
         next_child_found = true;
       }
     }
+
+    cout << "TRAVERSE TO CHILD " << next_child_index << " FROM" << endl;
+    print_node(traversal_node, 99); 
 
     // If the key is bigger than all keys, traverse to the last child.
     if (!next_child_found) {
@@ -692,7 +758,8 @@ void remove(btree*& root, int key) {
     // Repeat traversal for the next child
     traversal_node = traversal_node->children[next_child_index];
     if (is_minimal(traversal_node)) {
-      cout << "FIXING TRAVERSAL" << endl; 
+      cout << "FIXING TRAVERSAL" << endl;
+      // cout << "TRAVERSED TO" << 
       // pt(root);
       fix_for_removal(traversal_node, root);
     }
