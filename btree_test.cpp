@@ -12,6 +12,8 @@
 
 using namespace std;
 
+void pt(btree* root);
+
 // Test cases - study these, and the helper functions in btree_unittest_help.cpp.
 
 TEST_CASE("B-Tree: Sanity Check", "[sanity]") {
@@ -262,9 +264,18 @@ TEST_CASE("B-Tree: Remove key from leaf with at-min-capactiy siblings", "[rm lea
   REQUIRE(leaves_ok);
 
   remove(thrice, 1); // rm 1, smallest value. should result in shorter tree
+
+  cout << endl << "pre check_height" << endl;
+  pt(thrice);
+
   leaves_ok = check_height(thrice, height);
+
+  cout << endl << "post check_height" << endl;
+  pt(thrice);
+
   REQUIRE(height == 1);
   REQUIRE(leaves_ok);
+  
   REQUIRE(check_tree(thrice));
   REQUIRE_FALSE(private_search_all(thrice, 1));
 

@@ -15,6 +15,8 @@
 
 using namespace std;
 
+void pt(btree* root);
+
 btree* init_node() {
   btree* ret = new btree;
   ret->num_keys = 0;

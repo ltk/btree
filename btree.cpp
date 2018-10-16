@@ -6,7 +6,7 @@
 
 using namespace std;
 
-void remove_from_node(btree*& node, btree*& root, int key);
+void remove_from_node(btree* node, btree*& root, int key);
 
 void print_node(btree* node, int level) {
   cout << "Level " << level << "(leaf:" << node->is_leaf << ", numkeys:" << node->num_keys << ")" << endl;
@@ -29,13 +29,12 @@ void print_tree(btree* root, int level) {
   }
 }
 
-
 void pt(btree* root) {
   print_node(root, 0);
   print_tree(root, 0);
 }
 
-btree* find_parent(btree*& node, btree*& root) {
+btree* find_parent(btree* node, btree*& root) {
   // If the root node is equal to the target node, return null, since there is no parent node.
   if (node == root) {
     return NULL;
@@ -81,7 +80,7 @@ btree* find_parent(btree*& node, btree*& root) {
   }
 }
 
-void split_node(btree*& node, btree*& root) {
+void split_node(btree* node, btree*& root) {
   // Find the median key (the key at index ceil(order / 2)).
   int median_key_index = ceil(node->num_keys / 2);
   int median_key = node->keys[median_key_index];
@@ -119,6 +118,9 @@ void split_node(btree*& node, btree*& root) {
     root = new_root;
     root->is_leaf = false;
     root->num_keys = 0;
+    for (int i=0; i <= BTREE_ORDER; i++) {
+      root->children[i] = NULL;
+    }
     parent = root;
   } else {
     // Otherwise, find the current node’s parent node using the `find_parent` function.
@@ -159,6 +161,9 @@ void split_node(btree*& node, btree*& root) {
   btree* new_node = new btree;
   new_node->num_keys = higher_count;
   new_node->is_leaf = true;
+  for (int i=0; i <= BTREE_ORDER; i++) {
+    new_node->children[i] = NULL;
+  }
   for (int l = 0; l < higher_count; l++) {
     new_node->keys[l] = higher_keys[l];
   }
@@ -183,7 +188,7 @@ void split_node(btree*& node, btree*& root) {
   }
 }
 
-void insert_and_fix(int key, btree*& insertion_node, btree*& root) {
+void insert_and_fix(int key, btree* insertion_node, btree*& root) {
   // We’ll start by creating a new, empty array to hold our new key sequence.
   int new_keys[BTREE_ORDER];
 
@@ -238,7 +243,11 @@ void insert(btree*& root, int key) {
     root = new btree;
     root->num_keys = 1;
     root->is_leaf = true;
+    for (int i=0; i <= BTREE_ORDER; i++) {
+      root->children[i] = NULL;
+    }
     root->keys[0] = key;
+    
     return;
   }
 
@@ -258,7 +267,7 @@ void insert(btree*& root, int key) {
   insert_and_fix(key, insertion_node, root);
 }
 
-btree* prev_sibling(btree*& node, btree*& root) {
+btree* prev_sibling(btree* node, btree*& root) {
   btree* parent = find_parent(node, root);
 
   if (!parent) {
@@ -284,7 +293,7 @@ btree* prev_sibling(btree*& node, btree*& root) {
   return parent->children[child_index - 1];
 }
 
-btree* next_sibling(btree*& node, btree*& root) {
+btree* next_sibling(btree* node, btree*& root) {
   btree* parent = find_parent(node, root);
 
   if (!parent) {
@@ -310,12 +319,12 @@ btree* next_sibling(btree*& node, btree*& root) {
   return parent->children[child_index + 1];
 }
 
-bool is_minimal(btree*& node) {
+bool is_minimal(btree* node) {
   bool min = node->num_keys <= (BTREE_ORDER / 2);
   return min;
 }
 
-void merge(btree*& sib_1, btree*& sib_2, btree*& root) {
+void merge(btree* sib_1, btree* sib_2, btree*& root) {
   btree* parent = find_parent(sib_1, root);
   bool is_leaf = sib_1->is_leaf;
 
@@ -444,7 +453,7 @@ void merge(btree*& sib_1, btree*& sib_2, btree*& root) {
   delete sib_2;
 }
 
-void fix_for_removal(btree*& node, btree*& root) {
+void fix_for_removal(btree* node, btree*& root) {
   // If we're descending down into a node for a removal, and it's minimal
   // do some work to make it not minimal.
   btree* prev_sib = prev_sibling(node, root);
@@ -468,7 +477,7 @@ void fix_for_removal(btree*& node, btree*& root) {
   }
 }
 
-btree* find_successor_node(btree*& node, btree*& root, int key) {
+btree* find_successor_node(btree* node, btree*& root, int key) {
   if (node->is_leaf) {
     return NULL;
   }
@@ -499,7 +508,7 @@ btree* find_successor_node(btree*& node, btree*& root, int key) {
   return successor_node;
 }
 
-btree* find_predecessor_node(btree*& node, btree*& root, int key) {
+btree* find_predecessor_node(btree* node, btree*& root, int key) {
   if (node->is_leaf) {
     return NULL;
   }
@@ -535,7 +544,7 @@ btree* find_predecessor_node(btree*& node, btree*& root, int key) {
   return predecessor_node;
 }
 
-bool node_has_key(btree*& node, int key) {
+bool node_has_key(btree* node, int key) {
   for (int i = 0; i < node->num_keys; i++) {
     if (node->keys[i] == key) {
       return true;
@@ -545,7 +554,7 @@ bool node_has_key(btree*& node, int key) {
   return false;
 }
 
-void swap_keys(btree*& node, int key_to_remove, int key_to_add) {
+void swap_keys(btree* node, int key_to_remove, int key_to_add) {
   for (int i = 0; i < node->num_keys; i++) {
     if (node->keys[i] == key_to_remove) {
       node->keys[i] = key_to_add;
@@ -554,7 +563,7 @@ void swap_keys(btree*& node, int key_to_remove, int key_to_add) {
   }
 }
 
-void remove_from_leaf_node(btree*& node, int key) {
+void remove_from_leaf_node(btree* node, int key) {
   bool key_found = false;
   for (int i = 0; i < node->num_keys; i++) {
     if (node->keys[i] == key) {
@@ -566,7 +575,7 @@ void remove_from_leaf_node(btree*& node, int key) {
   node->num_keys--;
 }
 
-void remove_from_inner_node(btree*& node, btree*& root, int key) {
+void remove_from_inner_node(btree* node, btree*& root, int key) {
   // Swap the inner node key with successor/predecessor, then remove the
   // desired key from its new location.
 
@@ -598,7 +607,7 @@ void remove_from_inner_node(btree*& node, btree*& root, int key) {
   }
 }
 
-void remove_from_node(btree*& node, btree*& root, int key) {
+void remove_from_node(btree* node, btree*& root, int key) {
   if (node->is_leaf) {
     remove_from_leaf_node(node, key);
   } else {
@@ -607,8 +616,7 @@ void remove_from_node(btree*& node, btree*& root, int key) {
 }
 
 void remove(btree*& root, int key) {
-  cout << "Removing " << key << " From Tree:" << endl;
-  pt(root);
+  cout << endl << "Removing " << key << endl << endl;
 
   // If the root has the key, just remove from the root.
   // We don't need to fix root minimalism.
@@ -637,8 +645,6 @@ void remove(btree*& root, int key) {
       }
     }
 
-    print_node(traversal_node, 99); 
-
     // If the key is bigger than all keys, traverse to the last child.
     if (!next_child_found) {
       next_child_index = traversal_node->num_keys;
@@ -653,9 +659,6 @@ void remove(btree*& root, int key) {
 
   // If we made it here, we know that traversal_node contains the key.
   remove_from_node(traversal_node, root, key);
-
-  cout << "PRINTING FINAL" << endl;
-  pt(root);
 }
 
 btree* find(btree*& root, int key) {
